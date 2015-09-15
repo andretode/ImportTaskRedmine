@@ -1,0 +1,283 @@
+﻿using Aptum.ImportTaskRedmine.Entities;
+using Aptum.ImportTaskRedmine.Services;
+using Excel;
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Threading;
+using System.Windows.Forms;
+using Redmine.Net.Api.Types;
+
+namespace Aptum.ImportTaskRedmine
+{
+    public partial class FormPrincipal : Form
+    {
+        public string mensagensDeStatus;
+        public bool CargaValidacaoFeitaComSucesso = false;
+        public bool CargaValidacaoConcluida = false;
+        public bool CadastroConcluido = false;
+        public List<Project> listaDeProjetos;
+        RedmineServices redmineService;
+        List<ExcelIssue> IssueList;
+
+        public FormPrincipal()
+        {
+            InitializeComponent();
+            redmineService = new RedmineServices(textBoxRedmineHost.Text, textBoxApiAccessKey.Text);
+            mensagensDeStatus = "";
+        }
+
+        private bool CamposObrigatoriosPreenchidos()
+        {
+            if (textBoxApiAccessKey.Text == "" || textBoxRedmineHost.Text == "" || comboBoxProjetos.SelectedItem == null)
+            {
+                MessageBox.Show(null, "Todos os três campos são de preenchimento obrigatório",
+                    "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return false;
+            }
+            else
+                return true;
+        }
+
+        private bool ApiKeyEnderecoPreenchidos()
+        {
+            if (textBoxApiAccessKey.Text == "" || textBoxRedmineHost.Text == "")
+            {
+                MessageBox.Show(null, "Api Key e Endereço Redmine são de preenchimento obrigatório",
+                    "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                return false;
+            }
+            else
+                return true;
+        }
+
+        private void buttonAbrirExcel_Click(object sender, EventArgs e)
+        {
+            if (CamposObrigatoriosPreenchidos())
+            {
+                openFileDialog1.Filter = "Excel (.xlsx)|*.xlsx";
+                openFileDialog1.FilterIndex = 1;
+                DialogResult dialogResult = openFileDialog1.ShowDialog();
+                if (dialogResult == DialogResult.OK)
+                {
+                    Cursor.Current = Cursors.WaitCursor;
+                    Project projeto = (Project)comboBoxProjetos.SelectedItem;
+                    timerCargaArquivo.Enabled = true;
+
+                    //inicia o processo como uma thread
+                    Thread backgroundThread = new Thread(
+                        new ThreadStart(() =>
+                        {
+                            CargaValidacaoFeitaComSucesso = CarregarValidarExcel(projeto);
+                            CargaValidacaoConcluida = true;
+                        }
+                    ));
+                    backgroundThread.Start();
+                }
+            }
+        }
+
+        private void HabilitarCadastro()
+        {
+            timerCargaArquivo.Enabled = false;
+            const string MSG_SUCESSO = "O carregamento e validação concluídos com sucesso!";
+            buttonProcessar.Enabled = true;
+            buttonProcessar.Focus();
+            MessageBox.Show(null, MSG_SUCESSO, "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private bool CarregarValidarExcel(Project projeto)
+        {
+            const string MSG_CORRIJA_ERROS = "CORRIJA OS PROBLEMAS NO ARQUIVO E VOLTE A PROCESSAR";
+            
+            //limpa a lista para uma eventual escolha de novo arquivo
+            if (IssueList != null)
+                IssueList.Clear();
+
+            this.mensagensDeStatus = "Iniciando carregamento do arquivo..." + Environment.NewLine;
+            IssueList = CarregarExcel(projeto);
+
+            if (IssueList != null)
+            {
+                mensagensDeStatus += "Carregamento concluído com sucesso!" + Environment.NewLine;
+                mensagensDeStatus += "Iniciando validação dos usuários..." + Environment.NewLine;
+                var ListaDeUsuariosNaoEncontrados = redmineService.ValidarListaDeUsuarios(IssueList).Where(x => x.AssigneeId == 0);
+                if (ListaDeUsuariosNaoEncontrados.Count() > 0)
+                {
+                    mensagensDeStatus = "Um ou mais usuários não foram encontrados:" + Environment.NewLine;
+                    foreach (var excelIssue in ListaDeUsuariosNaoEncontrados)
+                        mensagensDeStatus += " - " + excelIssue.AssigneeEmail + Environment.NewLine;
+                    mensagensDeStatus += MSG_CORRIJA_ERROS;
+                }
+                else
+                {
+                    mensagensDeStatus += "Validação dos usuários concluída com sucesso!" + Environment.NewLine;
+                    mensagensDeStatus += "Iniciando validação dos trackers..." + Environment.NewLine;
+                    var ListTrackersNaoEncontrados = redmineService.ValidarListaDeTrackers(IssueList).Where(x => x.TrackerId == 0);
+                    if (ListTrackersNaoEncontrados.Count() > 0)
+                    {
+                        mensagensDeStatus = "Um ou mais trackers não foram encontrados:" + Environment.NewLine;
+                        foreach (var excelIssue in ListTrackersNaoEncontrados)
+                            mensagensDeStatus += " - " + excelIssue.Tracker + Environment.NewLine;
+                        mensagensDeStatus += MSG_CORRIJA_ERROS;
+                    }
+                    else
+                    {
+                        mensagensDeStatus += "Todas validações concluídas com sucesso!" + Environment.NewLine;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private List<ExcelIssue> CarregarExcel(Project projeto)
+        {
+            List<ExcelIssue> listExcelIssues = null;
+
+            System.IO.Stream fileStream;
+            try
+            {
+                fileStream = openFileDialog1.OpenFile();
+                listExcelIssues = ExcelIssue.CarregarIssuesExcel(fileStream, projeto.Id);
+
+                if (listExcelIssues == null)
+                    MessageBox.Show(null, "O arquivo Excel está fora do layout padrão ou contém dados incompatíveis.",
+                        "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+            }
+            catch (IOException ioex)
+            {
+                MessageBox.Show(null, "O arquivo Excel está sendo usado por outro processo." + Environment.NewLine
+                    + ioex.Message, "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                Console.WriteLine("1° Catch Erro: " + ioex.Message);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("2° Catch Erro: " + ex.Message);
+            }
+
+            return listExcelIssues;
+        }
+
+        private void buttonAtualizarProjetos_Click(object sender, EventArgs e)
+        {
+            if (ApiKeyEnderecoPreenchidos())
+            {
+                listaDeProjetos = null;
+                mensagensDeStatus = "Buscando informações dos projetos no Redmine..." + Environment.NewLine;
+                comboBoxProjetos.Enabled = false;
+                timerSelecaoProjeto.Enabled = true;
+
+                //inicia o processo como uma thread
+                Thread backgroundThread = new Thread(
+                    new ThreadStart(() =>
+                    {
+                        listaDeProjetos = redmineService.ListarProjetos();
+                    }
+                ));
+                backgroundThread.Start();
+            }
+        }
+
+        private void HabilitarSelecaoDeProjetos()
+        {
+            timerSelecaoProjeto.Enabled = false;
+            comboBoxProjetos.Items.AddRange(listaDeProjetos.ToArray());
+            comboBoxProjetos.Enabled = true;
+            comboBoxProjetos.Focus();
+            textBoxStatus.Text += "Informações dos projetos carregadas com sucesso!";
+        }
+
+        private void comboBoxProjetos_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboBoxProjetos.SelectedItem != null)
+            {
+                buttonAbrirExcel.Enabled = true;
+                buttonAbrirExcel.Focus();
+            }
+        }
+
+        private void buttonProcessar_Click(object sender, EventArgs e)
+        {
+            if (CamposObrigatoriosPreenchidos())
+            {
+                DialogResult result = MessageBox.Show(null, "Tem certeza que deseja continuar?", "Confirmação", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (result.Equals(DialogResult.Yes))
+                {
+                    CadastroConcluido = false;
+                    timerCadastroRedmine.Enabled = true;
+
+                    //inicia o processo como uma thread
+                    Thread backgroundThread = new Thread(
+                        new ThreadStart(() =>
+                        {
+                            CadastrarIssuesNoRedmine();
+                        }
+                    ));
+                    backgroundThread.Start();
+                }
+            }
+        }
+
+        private void CadastrarIssuesNoRedmine()
+        {
+            const string MSG_SUCESSO = "Todos cadastros concluídos com sucesso!";
+            mensagensDeStatus = "Iniciando cadastro das tarefas no Redmine..." + Environment.NewLine;
+            foreach (var issue in IssueList)
+            {
+                redmineService.CadastrarIssue(issue);
+                mensagensDeStatus += "Tarefa '" + issue.IdRedmine + "' cadastrada com sucesso!" + Environment.NewLine;
+            }
+            mensagensDeStatus += MSG_SUCESSO;
+            CadastroConcluido = true;
+            MessageBox.Show(null, MSG_SUCESSO, "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void timerSelecaoProjeto_Tick(object sender, EventArgs e)
+        {
+            ExibirStatusDaExecucao();
+
+            if (listaDeProjetos != null)
+            {
+                HabilitarSelecaoDeProjetos();
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        private void timerCargaArquivo_Tick(object sender, EventArgs e)
+        {
+            ExibirStatusDaExecucao();
+
+            if (CargaValidacaoConcluida)
+            {
+                if (CargaValidacaoFeitaComSucesso)
+                    HabilitarCadastro();
+                
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        private void timerCadastroRedmine_Tick(object sender, EventArgs e)
+        {
+            ExibirStatusDaExecucao();
+
+            if (CadastroConcluido)
+            {
+                timerCadastroRedmine.Enabled = false;
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        private void ExibirStatusDaExecucao()
+        {
+            Cursor.Current = Cursors.WaitCursor;
+            textBoxStatus.Text = mensagensDeStatus;
+            textBoxStatus.SelectionStart = textBoxStatus.TextLength;
+            textBoxStatus.ScrollToCaret();
+        }
+    }
+}
