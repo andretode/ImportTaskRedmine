@@ -11,8 +11,8 @@ namespace Aptum.ImportTaskRedmine.Services
     public class RedmineServices
     {
         private RedmineManager manager;
-        private List<Tracker> listaDeTrackers;
-        private List<User> listaDeUsuarios;
+        private IList<Tracker> listaDeTrackers;
+        private IList<ProjectMembership> listaDeUsuarios;
 
         public RedmineServices(string host, string apiKey)
         {
@@ -23,27 +23,149 @@ namespace Aptum.ImportTaskRedmine.Services
         {
             NameValueCollection parameters = new NameValueCollection();
             parameters.Add("Status", ProjectStatus.Active.ToString());
-            return manager.GetObjectList<Project>(parameters).ToList();
+            
+            try
+            {
+                return manager.GetObjectList<Project>(parameters).ToList();
+            }
+            catch (RedmineException rex)
+            {
+                return null;
+            }
         }
 
-        public ExcelIssue CadastrarIssue(ExcelIssue atualExcelIssue)
+        public List<ExcelIssue> ValidarIdIssue(List<ExcelIssue> ListExcelIssue)
         {
-            var newIssue = new Issue {
+            List<ExcelIssue> ListIssuesNaoEncontrados = new List<ExcelIssue>();
+            foreach(var excelIssue in ListExcelIssue)
+            {
+                try
+                {
+                    manager.GetObject<Issue>(excelIssue.IdRedmine.ToString(), null);
+                }
+                catch // (RedmineException rex)
+                {
+                    //Console.WriteLine("Mensagem de erro do sistema ao tentar carregar a Issue Id " + excelIssue.IdRedmine.ToString() + ": " + rex.Message);
+                    ListIssuesNaoEncontrados.Add(excelIssue);
+                }
+            }
+
+            return ListIssuesNaoEncontrados;
+        }
+
+        public ExcelIssue CadastrarIssue(ExcelIssue atualExcelIssue, bool atualizarProjetoExistente)
+        {
+            Issue issueLoaded = null;
+            Issue issueNew;
+            Issue issueToSave = null;
+
+            issueNew = new Issue
+            {
+                Id = atualExcelIssue.IdRedmine,
                 Subject = atualExcelIssue.Subject,
                 EstimatedHours = atualExcelIssue.EstimatedHours,
                 StartDate = atualExcelIssue.StartDate,
                 DueDate = atualExcelIssue.DueDate,
                 AssignedTo = new IdentifiableName { Id = atualExcelIssue.AssigneeId },
                 Tracker = new IdentifiableName { Id = atualExcelIssue.TrackerId },
-                Project = new IdentifiableName { Id = atualExcelIssue.ProjectId }
-                };
+                Project = new IdentifiableName { Id = atualExcelIssue.ProjectId },
+                ParentIssue = atualExcelIssue.ParentExcelIssue != null && atualExcelIssue.ParentExcelIssue.IdRedmine != 0 ?
+                    new IdentifiableName { Id = atualExcelIssue.ParentExcelIssue.IdRedmine } : null
+            };
 
-            if (atualExcelIssue.ParentExcelIssue.IdRedmine != 0)
-                newIssue.ParentIssue = new IdentifiableName { Id = atualExcelIssue.ParentExcelIssue.IdRedmine };
+            if (atualizarProjetoExistente && atualExcelIssue.IdRedmine != 0)
+            {
+                try
+                {
+                    issueLoaded = manager.GetObject<Issue>(atualExcelIssue.IdRedmine.ToString(), null);
+                    issueToSave = AtualizarSomenteModificacoes(issueLoaded, issueNew);
+                }
+                catch(RedmineException rex)
+                {
+                    Console.WriteLine("Mensagem de erro do sistema ao tentar carregar a Issue Id " + atualExcelIssue.IdRedmine.ToString() + ": " + rex.Message);
+                    throw new Exception("O ID da Issue/Atividade sendo atualizada não foi encontrada no Redmine!");
+                }
+            }
+            else
+                issueToSave = issueNew;
 
-            newIssue = manager.CreateObject(newIssue);
-            atualExcelIssue.IdRedmine = newIssue.Id;
+            try
+            {
+                if (!atualizarProjetoExistente)
+                {
+                    issueToSave = manager.CreateObject(issueToSave);
+                    atualExcelIssue.IdRedmine = issueToSave.Id;
+                }
+                else if (issueToSave.Id != 0)
+                    manager.UpdateObject(issueToSave.Id.ToString(), issueToSave);
+            }
+            catch(RedmineException rex)
+            {
+                if (rex.Message.Contains("Tracker is not included in the list"))
+                {
+                    throw new Exception("Tracker Not Found");
+                }
+                else {
+                    throw rex;
+                }
+            }
+
             return atualExcelIssue;
+        }
+
+        private Issue AtualizarSomenteModificacoes(Issue issueLoaded, Issue issueNew)
+        {
+            bool mudou = false;
+
+            if (!issueLoaded.Subject.Equals(issueNew.Subject))
+            {
+                issueLoaded.Subject = issueNew.Subject;
+                mudou = true;
+            }
+
+            if (!issueLoaded.EstimatedHours.Equals(issueNew.EstimatedHours))
+            {
+                issueLoaded.EstimatedHours = issueNew.EstimatedHours;
+                mudou = true;
+            }
+
+            if (!issueLoaded.StartDate.Value.ToString("ddMMyyyy").Equals(issueNew.StartDate.Value.ToString("ddMMyyyy")))
+            {
+                issueLoaded.StartDate = issueNew.StartDate;
+                mudou = true;
+            }
+
+            if (!issueLoaded.DueDate.Value.ToString("ddMMyyyy").Equals(issueNew.DueDate.Value.ToString("ddMMyyyy")))
+            {
+                issueLoaded.DueDate = issueNew.DueDate;
+                mudou = true;
+            }
+
+            if (issueNew.AssignedTo.Id != -1)
+            {
+                if (issueLoaded.AssignedTo == null || !issueLoaded.AssignedTo.Id.Equals(issueNew.AssignedTo.Id))
+                {
+                    issueLoaded.AssignedTo = issueNew.AssignedTo;
+                    mudou = true;
+                }
+            }
+
+            if (issueNew.Tracker != null && !issueNew.Tracker.Id.Equals(-1) && !issueLoaded.Tracker.Id.Equals(issueNew.Tracker.Id))
+            {
+                issueLoaded.Tracker = issueNew.Tracker;
+                mudou = true;
+            }
+            
+            if (issueNew.ParentIssue != null && !issueLoaded.ParentIssue.Equals(issueNew.ParentIssue))
+            {
+                issueLoaded.ParentIssue = issueNew.ParentIssue;
+                mudou = true;
+            }
+
+            if (!mudou)
+                issueLoaded.Id = 0;
+
+            return issueLoaded;
         }
 
         /**
@@ -56,16 +178,22 @@ namespace Aptum.ImportTaskRedmine.Services
         **/
         private int UsuarioExiste(ExcelIssue excelIssue)
         {
-            if (excelIssue.AssigneeEmail == null)
+            if (excelIssue.AssigneeName == null)
                 return -1;
 
             if (listaDeUsuarios == null)
-                listaDeUsuarios = manager.GetUsers(UserStatus.STATUS_ACTIVE).ToList();
+            {
+                var parametros = new NameValueCollection();
+                parametros.Add("project_id", excelIssue.ProjectId.ToString());
+                listaDeUsuarios = manager.GetObjectList<ProjectMembership>(parametros);
+            }
 
-            List<User> usuariosFiltrados = listaDeUsuarios.Where(x => x.Email == excelIssue.AssigneeEmail).ToList();
+            //User user = listaDeMembrosProjeto[1].User;
+
+            List<ProjectMembership> usuariosFiltrados = listaDeUsuarios.Where(x => x.User.Name.Trim() == excelIssue.AssigneeName.Trim()).ToList();
 
             if (usuariosFiltrados.Count > 0)
-                return usuariosFiltrados[0].Id;
+                return usuariosFiltrados[0].User.Id;
             else
                 return 0;
         }
@@ -93,9 +221,9 @@ namespace Aptum.ImportTaskRedmine.Services
 
             if (listaDeTrackers == null)
             {
-                NameValueCollection parameters = new NameValueCollection();
-                parameters.Add("Name", "*");
-                listaDeTrackers = manager.GetObjectList<Tracker>(parameters).ToList();
+                NameValueCollection parametros = new NameValueCollection();
+                parametros.Add("project_id", excelIssue.ProjectId.ToString());
+                listaDeTrackers = manager.GetObjectList<Tracker>(parametros);
             }
 
             List<Tracker> trackersFiltrados = listaDeTrackers.Where(x => x.Name == excelIssue.Tracker).ToList();

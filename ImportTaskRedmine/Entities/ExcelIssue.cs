@@ -18,7 +18,7 @@ namespace Aptum.ImportTaskRedmine.Entities
         public float EstimatedHours { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime DueDate { get; set; }
-        public String AssigneeEmail { get; set; }
+        public String AssigneeName { get; set; }
         public int AssigneeId { get; set; }
         public string OutlineNumber { get; set; }
         public string Tracker { get; set; }
@@ -32,9 +32,7 @@ namespace Aptum.ImportTaskRedmine.Entities
 
             foreach(var issue in IssueList)
             {
-                issue.ParentExcelIssue = issue;
                 int tamanho = issue.OutlineNumber.Length;
-
                 if(tamanho>2)
                     outlineNumberParentTask = issue.OutlineNumber.Remove(tamanho - 2);
 
@@ -72,8 +70,9 @@ namespace Aptum.ImportTaskRedmine.Entities
                     issue.EstimatedHours = excelReader.GetFloat(2);
                     issue.StartDate = excelReader.GetDateTime(3);
                     issue.DueDate = excelReader.GetDateTime(4);
-                    issue.AssigneeEmail = excelReader.GetString(5);
+                    issue.AssigneeName = excelReader.GetString(5);
                     issue.Tracker = excelReader.GetString(6);
+                    issue.IdRedmine = excelReader.GetInt32(7) == -2147483648 ? 0 : excelReader.GetInt32(7);
                     issue.ProjectId = projectId;
                 }
                 catch (Exception ex)

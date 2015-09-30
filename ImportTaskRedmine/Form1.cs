@@ -18,6 +18,8 @@ namespace Aptum.ImportTaskRedmine
         public bool CargaValidacaoFeitaComSucesso = false;
         public bool CargaValidacaoConcluida = false;
         public bool CadastroConcluido = false;
+        public bool ErroConexaoRedmine = false;
+        public bool ErroCadastroRedmine = false;
         public List<Project> listaDeProjetos;
         RedmineServices redmineService;
         List<ExcelIssue> IssueList;
@@ -90,7 +92,7 @@ namespace Aptum.ImportTaskRedmine
 
         private bool CarregarValidarExcel(Project projeto)
         {
-            const string MSG_CORRIJA_ERROS = "CORRIJA OS PROBLEMAS NO ARQUIVO E VOLTE A PROCESSAR";
+            const string MSG_CORRIJA_ERROS = "CORRIJA OS PROBLEMAS NO ARQUIVO OU NO REDMINE";
             
             //limpa a lista para uma eventual escolha de novo arquivo
             if (IssueList != null)
@@ -108,7 +110,7 @@ namespace Aptum.ImportTaskRedmine
                 {
                     mensagensDeStatus = "Um ou mais usuários não foram encontrados:" + Environment.NewLine;
                     foreach (var excelIssue in ListaDeUsuariosNaoEncontrados)
-                        mensagensDeStatus += " - " + excelIssue.AssigneeEmail + Environment.NewLine;
+                        mensagensDeStatus += " - " + excelIssue.AssigneeName + Environment.NewLine;
                     mensagensDeStatus += MSG_CORRIJA_ERROS;
                 }
                 else
@@ -125,8 +127,29 @@ namespace Aptum.ImportTaskRedmine
                     }
                     else
                     {
-                        mensagensDeStatus += "Todas validações concluídas com sucesso!" + Environment.NewLine;
-                        return true;
+                        if (checkBoxAtualizarProjetoExistente.Checked)
+                        {
+                            mensagensDeStatus += "Validação dos trackers concluída com sucesso!" + Environment.NewLine;
+                            mensagensDeStatus += "Iniciando validação das issues existentes..." + Environment.NewLine;
+                            var ListIssuesNaoEncontrados = redmineService.ValidarIdIssue(IssueList);
+                            if (ListIssuesNaoEncontrados.Count() > 0)
+                            {
+                                mensagensDeStatus = "Um ou mais issues não foram encontradas:" + Environment.NewLine;
+                                foreach (var excelIssue in ListIssuesNaoEncontrados)
+                                    mensagensDeStatus += " - " + excelIssue.IdRedmine + Environment.NewLine;
+                                mensagensDeStatus += MSG_CORRIJA_ERROS;
+                            }
+                            else
+                            {
+                                mensagensDeStatus += "Todas validações concluídas com sucesso!" + Environment.NewLine;
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            mensagensDeStatus += "Todas validações concluídas com sucesso!" + Environment.NewLine;
+                            return true;
+                        }
                     }
                 }
             }
@@ -165,6 +188,9 @@ namespace Aptum.ImportTaskRedmine
 
         private void buttonAtualizarProjetos_Click(object sender, EventArgs e)
         {
+            const string MSG_ERRO = "Não foi possível se conectar ao Redmine!";
+            ErroConexaoRedmine = false;
+
             if (ApiKeyEnderecoPreenchidos())
             {
                 listaDeProjetos = null;
@@ -177,6 +203,12 @@ namespace Aptum.ImportTaskRedmine
                     new ThreadStart(() =>
                     {
                         listaDeProjetos = redmineService.ListarProjetos();
+                        if(listaDeProjetos == null)
+                        {
+                            ErroConexaoRedmine = true;
+                            mensagensDeStatus += MSG_ERRO + Environment.NewLine;
+                            MessageBox.Show(null, MSG_ERRO, "Atenção", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        }
                     }
                 ));
                 backgroundThread.Start();
@@ -215,7 +247,7 @@ namespace Aptum.ImportTaskRedmine
                     Thread backgroundThread = new Thread(
                         new ThreadStart(() =>
                         {
-                            CadastrarIssuesNoRedmine();
+                            CadastrarIssuesNoRedmine(checkBoxAtualizarProjetoExistente.Checked);     
                         }
                     ));
                     backgroundThread.Start();
@@ -223,27 +255,60 @@ namespace Aptum.ImportTaskRedmine
             }
         }
 
-        private void CadastrarIssuesNoRedmine()
+        private bool CadastrarIssuesNoRedmine(bool atualizarProjetoExistente)
         {
             const string MSG_SUCESSO = "Todos cadastros concluídos com sucesso!";
+            const string MSG_ERRO_TRACKER = "Atualização abortada! Existe um tracker não associado ao projeto.";
+            const string MSG_ERRO = "Atualização abortada! Um erro inesperado aconteceu: ";
             mensagensDeStatus = "Iniciando cadastro das tarefas no Redmine..." + Environment.NewLine;
+            ErroCadastroRedmine = false;
+
             foreach (var issue in IssueList)
             {
-                redmineService.CadastrarIssue(issue);
-                mensagensDeStatus += "Tarefa '" + issue.IdRedmine + "' cadastrada com sucesso!" + Environment.NewLine;
+                //redmineService.CadastrarIssue(issue, atualizarProjetoExistente);
+                //mensagensDeStatus += "Tarefa '" + issue.IdRedmine + "' atualizada com sucesso!" + Environment.NewLine;
+
+                try
+                {
+                    redmineService.CadastrarIssue(issue, atualizarProjetoExistente);
+                    mensagensDeStatus += "Tarefa '" + issue.IdRedmine + "' atualizada com sucesso!" + Environment.NewLine;
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Equals("Tracker Not Found"))
+                    {
+                        mensagensDeStatus += MSG_ERRO_TRACKER;
+                        MessageBox.Show(null, MSG_ERRO_TRACKER, "Atenção", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        ErroCadastroRedmine = true;
+                        return false;
+                    }
+                    else
+                    {
+                        mensagensDeStatus += MSG_ERRO;
+                        MessageBox.Show(null, MSG_ERRO + ex.Message, "Erro no Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        ErroCadastroRedmine = true;
+                        return false;
+                    }
+                }
             }
             mensagensDeStatus += MSG_SUCESSO;
             CadastroConcluido = true;
             MessageBox.Show(null, MSG_SUCESSO, "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return true;
         }
 
         private void timerSelecaoProjeto_Tick(object sender, EventArgs e)
         {
             ExibirStatusDaExecucao();
 
-            if (listaDeProjetos != null)
+            if (!ErroConexaoRedmine && listaDeProjetos!= null)
             {
                 HabilitarSelecaoDeProjetos();
+                Cursor.Current = Cursors.Default;
+            }
+            else if (ErroConexaoRedmine)
+            {
+                timerSelecaoProjeto.Enabled = false;
                 Cursor.Current = Cursors.Default;
             }
         }
@@ -265,9 +330,14 @@ namespace Aptum.ImportTaskRedmine
         {
             ExibirStatusDaExecucao();
 
-            if (CadastroConcluido)
+            if (!ErroCadastroRedmine && CadastroConcluido)
             {
                 timerCadastroRedmine.Enabled = false;
+                Cursor.Current = Cursors.Default;
+            }
+            else if (ErroCadastroRedmine)
+            {
+                timerSelecaoProjeto.Enabled = false;
                 Cursor.Current = Cursors.Default;
             }
         }

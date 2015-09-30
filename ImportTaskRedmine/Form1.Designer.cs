@@ -49,6 +49,7 @@
             this.label5 = new System.Windows.Forms.Label();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.checkBoxAtualizarProjetoExistente = new System.Windows.Forms.CheckBox();
             this.timerSelecaoProjeto = new System.Windows.Forms.Timer(this.components);
             this.timerCargaArquivo = new System.Windows.Forms.Timer(this.components);
             this.timerCadastroRedmine = new System.Windows.Forms.Timer(this.components);
@@ -77,7 +78,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(102, 60);
+            this.label1.Location = new System.Drawing.Point(102, 43);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(86, 13);
             this.label1.TabIndex = 1;
@@ -86,7 +87,7 @@
             // textBoxApiAccessKey
             // 
             this.textBoxApiAccessKey.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.textBoxApiAccessKey.Location = new System.Drawing.Point(205, 58);
+            this.textBoxApiAccessKey.Location = new System.Drawing.Point(205, 41);
             this.textBoxApiAccessKey.Name = "textBoxApiAccessKey";
             this.textBoxApiAccessKey.Size = new System.Drawing.Size(303, 20);
             this.textBoxApiAccessKey.TabIndex = 2;
@@ -103,7 +104,7 @@
             // buttonAtualizarProjetos
             // 
             this.buttonAtualizarProjetos.Image = global::Aptum.ImportTaskRedmine.Properties.Resources.refresh_icon;
-            this.buttonAtualizarProjetos.Location = new System.Drawing.Point(206, 115);
+            this.buttonAtualizarProjetos.Location = new System.Drawing.Point(206, 98);
             this.buttonAtualizarProjetos.Name = "buttonAtualizarProjetos";
             this.buttonAtualizarProjetos.Size = new System.Drawing.Size(31, 27);
             this.buttonAtualizarProjetos.TabIndex = 6;
@@ -114,7 +115,7 @@
             // textBoxRedmineHost
             // 
             this.textBoxRedmineHost.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.textBoxRedmineHost.Location = new System.Drawing.Point(205, 87);
+            this.textBoxRedmineHost.Location = new System.Drawing.Point(205, 70);
             this.textBoxRedmineHost.Name = "textBoxRedmineHost";
             this.textBoxRedmineHost.Size = new System.Drawing.Size(303, 20);
             this.textBoxRedmineHost.TabIndex = 4;
@@ -123,7 +124,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(102, 89);
+            this.label2.Location = new System.Drawing.Point(102, 72);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(101, 13);
             this.label2.TabIndex = 3;
@@ -136,14 +137,14 @@
             this.buttonProcessar.Name = "buttonProcessar";
             this.buttonProcessar.Size = new System.Drawing.Size(303, 23);
             this.buttonProcessar.TabIndex = 9;
-            this.buttonProcessar.Text = "2- Cadastrar Tarefas no Redmine";
+            this.buttonProcessar.Text = "2- Cadastrar/Atualizar Tarefas no Redmine";
             this.buttonProcessar.UseVisualStyleBackColor = true;
             this.buttonProcessar.Click += new System.EventHandler(this.buttonProcessar_Click);
             // 
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(103, 121);
+            this.label3.Location = new System.Drawing.Point(103, 104);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(88, 13);
             this.label3.TabIndex = 5;
@@ -177,7 +178,7 @@
             // 
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panel1.Controls.Add(this.comboBoxProjetos);
-            this.panel1.Location = new System.Drawing.Point(242, 115);
+            this.panel1.Location = new System.Drawing.Point(242, 98);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(266, 26);
             this.panel1.TabIndex = 12;
@@ -227,16 +228,19 @@
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Image = global::Aptum.ImportTaskRedmine.Properties.Resources.layout_import_task_redmine;
+            this.pictureBox1.ErrorImage = null;
+            this.pictureBox1.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox1.Image")));
             this.pictureBox1.InitialImage = null;
             this.pictureBox1.Location = new System.Drawing.Point(15, 233);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(585, 195);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pictureBox1.TabIndex = 0;
             this.pictureBox1.TabStop = false;
             // 
             // tabPage2
             // 
+            this.tabPage2.Controls.Add(this.checkBoxAtualizarProjetoExistente);
             this.tabPage2.Controls.Add(this.textBoxRedmineHost);
             this.tabPage2.Controls.Add(this.panel1);
             this.tabPage2.Controls.Add(this.buttonAbrirExcel);
@@ -255,6 +259,16 @@
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Importação";
             this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxAtualizarProjetoExistente
+            // 
+            this.checkBoxAtualizarProjetoExistente.AutoSize = true;
+            this.checkBoxAtualizarProjetoExistente.Location = new System.Drawing.Point(206, 132);
+            this.checkBoxAtualizarProjetoExistente.Name = "checkBoxAtualizarProjetoExistente";
+            this.checkBoxAtualizarProjetoExistente.Size = new System.Drawing.Size(148, 17);
+            this.checkBoxAtualizarProjetoExistente.TabIndex = 14;
+            this.checkBoxAtualizarProjetoExistente.Text = "Atualizar Projeto Existente";
+            this.checkBoxAtualizarProjetoExistente.UseVisualStyleBackColor = true;
             // 
             // timerSelecaoProjeto
             // 
@@ -276,7 +290,7 @@
             this.Controls.Add(this.tabControl1);
             this.MaximizeBox = false;
             this.Name = "FormPrincipal";
-            this.Text = "ImportTaskRedmine - Versão 1.0.1";
+            this.Text = "ImportTaskRedmine - Versão 2.0.1";
             this.panel1.ResumeLayout(false);
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
@@ -312,6 +326,7 @@
         private System.Windows.Forms.Timer timerSelecaoProjeto;
         private System.Windows.Forms.Timer timerCargaArquivo;
         private System.Windows.Forms.Timer timerCadastroRedmine;
+        private System.Windows.Forms.CheckBox checkBoxAtualizarProjetoExistente;
     }
 }
 

@@ -63,9 +63,9 @@ namespace Aptum.ImportTaskRedmine.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap layout_import_task_redmine {
+        internal static System.Drawing.Bitmap layout_importacao {
             get {
-                object obj = ResourceManager.GetObject("layout-import-task-redmine", resourceCulture);
+                object obj = ResourceManager.GetObject("layout-importacao", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
