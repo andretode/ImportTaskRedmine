@@ -6,8 +6,8 @@ D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\bin\Debug\ICSharpCode.Sha
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\bin\Debug\redmine-net45-api.dll
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\bin\Debug\Excel.pdb
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.csprojResolveAssemblyReference.cache
+D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.FormPrincipal.resources
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.Properties.Resources.resources
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.csproj.GenerateResource.Cache
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.exe
 D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.pdb
-D:\Desenvolvimento\ImportTaskRedmine\ImportTaskRedmine\obj\Debug\Aptum.ImportTaskRedmine.FormPrincipal.resources

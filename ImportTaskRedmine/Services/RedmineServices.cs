@@ -33,24 +33,23 @@ namespace Aptum.ImportTaskRedmine.Services
                 return null;
             }
         }
-
-        public List<ExcelIssue> ValidarIdIssue(List<ExcelIssue> ListExcelIssue)
+        
+        public List<ExcelIssue> ValidarIdIssues(List<ExcelIssue> listadeIssueFromExcel)
         {
-            List<ExcelIssue> ListIssuesNaoEncontrados = new List<ExcelIssue>();
-            foreach(var excelIssue in ListExcelIssue)
-            {
-                try
-                {
-                    manager.GetObject<Issue>(excelIssue.IdRedmine.ToString(), null);
-                }
-                catch // (RedmineException rex)
-                {
-                    //Console.WriteLine("Mensagem de erro do sistema ao tentar carregar a Issue Id " + excelIssue.IdRedmine.ToString() + ": " + rex.Message);
-                    ListIssuesNaoEncontrados.Add(excelIssue);
-                }
-            }
+            IEnumerable<ExcelIssue> listaIssuesEncontrados;
+            IEnumerable<ExcelIssue> listaIssuesNaoEncontrados;
 
-            return ListIssuesNaoEncontrados;
+            var parameters = new NameValueCollection();
+            parameters.Add("project_id", listadeIssueFromExcel[0].ProjectId.ToString());
+            var listaIssuesFromRedmine = manager.GetObjectList<Issue>(parameters);
+
+            listaIssuesEncontrados = from first in listadeIssueFromExcel
+                                       join second in listaIssuesFromRedmine
+                                       on first.IdRedmine equals second.Id
+                                       select first;
+            listaIssuesNaoEncontrados = listadeIssueFromExcel.Except(listaIssuesEncontrados.ToList());
+
+            return listaIssuesNaoEncontrados.ToList();
         }
 
         public ExcelIssue CadastrarIssue(ExcelIssue atualExcelIssue, bool atualizarProjetoExistente)

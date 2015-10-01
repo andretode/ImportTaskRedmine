@@ -57,6 +57,7 @@ namespace Aptum.ImportTaskRedmine
 
         private void buttonAbrirExcel_Click(object sender, EventArgs e)
         {
+            CargaValidacaoConcluida = false;
             if (CamposObrigatoriosPreenchidos())
             {
                 openFileDialog1.Filter = "Excel (.xlsx)|*.xlsx";
@@ -112,6 +113,7 @@ namespace Aptum.ImportTaskRedmine
                     foreach (var excelIssue in ListaDeUsuariosNaoEncontrados)
                         mensagensDeStatus += " - " + excelIssue.AssigneeName + Environment.NewLine;
                     mensagensDeStatus += MSG_CORRIJA_ERROS;
+                    return false;
                 }
                 else
                 {
@@ -124,6 +126,7 @@ namespace Aptum.ImportTaskRedmine
                         foreach (var excelIssue in ListTrackersNaoEncontrados)
                             mensagensDeStatus += " - " + excelIssue.Tracker + Environment.NewLine;
                         mensagensDeStatus += MSG_CORRIJA_ERROS;
+                        return false;
                     }
                     else
                     {
@@ -131,13 +134,15 @@ namespace Aptum.ImportTaskRedmine
                         {
                             mensagensDeStatus += "Validação dos trackers concluída com sucesso!" + Environment.NewLine;
                             mensagensDeStatus += "Iniciando validação das issues existentes..." + Environment.NewLine;
-                            var ListIssuesNaoEncontrados = redmineService.ValidarIdIssue(IssueList);
+                            //var ListIssuesNaoEncontrados = redmineService.ValidarIdIssue(IssueList);
+                            var ListIssuesNaoEncontrados = redmineService.ValidarIdIssues(IssueList);
                             if (ListIssuesNaoEncontrados.Count() > 0)
                             {
                                 mensagensDeStatus = "Um ou mais issues não foram encontradas:" + Environment.NewLine;
                                 foreach (var excelIssue in ListIssuesNaoEncontrados)
                                     mensagensDeStatus += " - " + excelIssue.IdRedmine + Environment.NewLine;
                                 mensagensDeStatus += MSG_CORRIJA_ERROS;
+                                return false;
                             }
                             else
                             {
@@ -321,7 +326,8 @@ namespace Aptum.ImportTaskRedmine
             {
                 if (CargaValidacaoFeitaComSucesso)
                     HabilitarCadastro();
-                
+
+                timerCargaArquivo.Enabled = false;
                 Cursor.Current = Cursors.Default;
             }
         }
